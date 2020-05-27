@@ -64,7 +64,7 @@ class DrawState:
         fpsClock = pg.time.Clock()
         
         self.drawBackGround()
-        if self.updateColorByPosterior:
+        if posterior:
             circleColors = self.updateColorByPosterior(self.colorSpace, posterior)
         else:
             circleColors = self.colorSpace

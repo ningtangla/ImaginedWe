@@ -32,12 +32,13 @@ class MappingActionToAnotherSpace:
         return perceivedAction
 
 class PerceptImaginedWeAction:
-    def __init__(self, imaginedWeId, perceptSelfAction, perceptOtherAction):
-        self.imaginedWeId = imaginedWeId
+    def __init__(self, selfId, perceptSelfAction, perceptOtherAction):
+        self.selfId = selfId
         self.perceptSelfAction = perceptSelfAction
         self.perceptOtherAction = perceptOtherAction
 
     def __call__(self, objectiveTokenAction):
-        perceivedImaginedWeAction = [self.perceptSelfAction(np.array(objectiveTokenAction)[self.imaginedWeId[0]])] + \
-            [self.perceptOtherAction(action) for action in np.array(objectiveTokenAction)[self.imaginedWeId[1:]]]
-        return np.array(perceivedImaginedWeAction)
+        perceivedAction = [self.perceptOtherAction(action) 
+                for action in np.array(objectiveTokenAction)]
+        perceivedAction[self.selfId] = self.perceptSelfAction(objectiveTokenAction)
+        return np.array(perceivedAction)

@@ -1,13 +1,13 @@
 import numpy as np
 
-class RewardFunctionTerminalPenalty():
-    def __init__(self, aliveBouns, deathPenalty, isTerminal):
-        self.aliveBouns = aliveBouns
-        self.deathPenalty = deathPenalty
+class RewardFunctionByTerminal():
+    def __init__(self, timeReward, terminalReward, isTerminal):
+        self.timeReward = timeReward
+        self.terminalReward = terminalReward
         self.isTerminal = isTerminal
     def __call__(self, state, action, nextState):
         if self.isTerminal(nextState):
-            reward = self.deathPenalty
+            reward = self.terminalReward
         else:
-            reward = self.aliveBouns
+            reward = self.timeReward
         return reward

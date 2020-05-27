@@ -15,31 +15,27 @@ class Reset():
                      for _ in range(self.numOfAgnet)]
         return np.array(initState)
 
-
-class TransitForNoPhysics():
+class InterpolateOneFrame():
     def __init__(self, stayInBoundaryByReflectVelocity):
         self.stayInBoundaryByReflectVelocity = stayInBoundaryByReflectVelocity
 
-    def __call__(self, state, action):
-        newState = np.array(state) + np.array(action)
+    def __call__(self, positions, velocities):
+        newPositions = np.array(positions) + np.array(velocities)
         checkedNewPositionsAndVelocities = [self.stayInBoundaryByReflectVelocity(
-            position, velocity) for position, velocity in zip(newState, action)]
-        newState, newAction = list(zip(*checkedNewPositionsAndVelocities))
-        return np.array(newState), np.array(newAction)
+            position, velocity) for position, velocity in zip(newPositions, velocities)]
+        newPositions, newVelocities = list(zip(*checkedNewPositionsAndVelocities))
+        return np.array(newPositions), np.array(newVelocities)
 
-class TransitWithInterpolateState:
-    def __init__(self, numFramesToInterpolate, StayInBoundaryAndOutObstacleByReflectVelocity, isTerminal):
+class TransitWithTerminalCheckOfInterpolation:
+    def __init__(self, numFramesToInterpolate, interpolateOneFrame, isTerminal):
         self.numFramesToInterpolate = numFramesToInterpolate
-        self.stayInBoundaryByReflectVelocity = stayInBoundaryByReflectVelocity
+        self.interpolateOneFrame = interpolateOneFrame
         self.isTerminal = isTerminal
 
     def __call__(self, state, action):
         actionForInterpolation = np.array(action) / (self.numFramesToInterpolate + 1)
         for frameIndex in range(self.numFramesToInterpolate + 1):
-            noBoundaryNextState = np.array(state) + np.array(actionForInterpolation)
-            checkedNewPositionsAndVelocities = [self.stayInBoundaryByReflectVelocity(
-                position, velocity) for position, velocity in zip(noBoundaryNextState, actionForInterpolation)]
-            nextState, nextActionForInterpolation = list(zip(*checkedNewPositionsAndVelocities))
+            nextState, nextActionForInterpolation = self.interpolateOneFrame(state, actionForInterpolation)
             if self.isTerminal(nextState):
                 break
             state = nextState
@@ -129,15 +125,3 @@ class StayInBoundaryAndOutObstacleByReflectVelocity():
         checkedVelocity = np.array([adjustedVelX, adjustedVelY])
         return checkedPosition, checkedVelocity
 
-class CheckBoundary():
-    def __init__(self, xBoundary, yBoundary):
-        self.xMin, self.xMax = xBoundary
-        self.yMin, self.yMax = yBoundary
-
-    def __call__(self, position):
-        xPos, yPos = position
-        if xPos >= self.xMax or xPos <= self.xMin:
-            return False
-        elif yPos >= self.yMax or yPos <= self.yMin:
-            return False
-        return True
