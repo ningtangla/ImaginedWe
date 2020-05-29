@@ -100,7 +100,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 2.5
+        softParameterInPlanningForSheep = 2.0
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -204,7 +204,7 @@ class SampleTrjactoriesForConditions:
         recordActionForUpdateIntention = RecordValuesForObjects(attributesToRecord, updateIntentions) 
 
 	# Wovels Generate Action
-        softParameterInPlanning = 2.5
+        softParameterInPlanning = 1.0
         softPolicyInPlanning = SoftDistribution(softParameterInPlanning)
         policyForCommittedAgentInPlanning = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInPlanning,
                 getStateOrActionThirdPersonPerspective)
@@ -242,8 +242,8 @@ class SampleTrjactoriesForConditions:
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numWolves'] = [2]
-    manipulatedVariables['numSheep'] = [1]
+    manipulatedVariables['numWolves'] = [2, 3]
+    manipulatedVariables['numSheep'] = [1, 2]
     manipulatedVariables['valuePriorEndTime'] = [-100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())

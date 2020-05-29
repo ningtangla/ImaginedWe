@@ -40,9 +40,9 @@ def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
     manipulatedVariables['numWolves'] = [2]
-    manipulatedVariables['numSheep'] = [1]#, 4, 8]
-    manipulatedVariables['hierarchy'] = [0, 1]
-    manipulatedVariables['valuePriorEndTime'] = [-100]#[-100, 0, 100]
+    manipulatedVariables['numSheep'] = [2, 4, 8]#, 4, 8]
+    manipulatedVariables['hierarchy'] = [0]
+    manipulatedVariables['valuePriorEndTime'] = [-100, 0]#[-100, 0, 100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -70,7 +70,7 @@ def main():
     loadTrajectories = LoadTrajectories(getTrajectorySavePath, loadFromPickle)
     loadTrajectoriesFromDf = lambda df: loadTrajectories(readParametersFromDf(df))
     
-    maxSteps = maxRunningSteps-25
+    maxSteps = maxRunningSteps-26
     measureIntentionArcheivement = lambda df: lambda trajectory: int(len(trajectory) < maxSteps) - 1 / maxSteps * min(len(trajectory), maxSteps)
     computeStatistics = ComputeStatistics(loadTrajectoriesFromDf, measureIntentionArcheivement)
     statisticsDf = toSplitFrame.groupby(levelNames).apply(computeStatistics)
@@ -78,27 +78,27 @@ def main():
     
     fig = plt.figure()
     numColumns = len(manipulatedVariables['numWolves'])
-    numRows = len(manipulatedVariables['valuePriorEndTime'])
+    numRows = len(manipulatedVariables['hierarchy'])
     plotCounter = 1
 
-    for key, group in statisticsDf.groupby(['valuePriorEndTime', 'numWolves']):
-        group.index = group.index.droplevel(['valuePriorEndTime', 'numWolves'])
+    for key, group in statisticsDf.groupby(['hierarchy', 'numWolves']):
+        group.index = group.index.droplevel(['hierarchy', 'numWolves'])
         axForDraw = fig.add_subplot(numRows, numColumns, plotCounter)
         axForDraw.set_ylabel('Accumulated Reward')
         #axForDraw.set_ylabel(str(numWolves))
         
-        if plotCounter <= numColumns:
-            axForDraw.set_title(str(key[1]) + 'Wolves')
-        hierarchyLabels = ['noHierarchy9', 'noHierarchy5', 'Hierarchy9']
-        for hierarchy, grp in group.groupby('hierarchy'):
-            grp.index = grp.index.droplevel('hierarchy')
-            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = hierarchyLabels[hierarchy], ylim = (-0.2, 1), marker = 'o', rot = 0 )
-       
+        #if plotCounter <= numColumns:
+        #    axForDraw.set_title(str(key[1]) + 'Wolves')
+        valuePriorLabels = ['No Value Prior', 'Value Prior']# First Time Step', 'Value Prior Every Time Step ']
+        for valuePriorEndTime, grp in group.groupby('valuePriorEndTime'):
+            grp.index = grp.index.droplevel('valuePriorEndTime')
+            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = valuePriorLabels[int(valuePriorEndTime/100)+1], ylim = (0.2, 0.7), marker = 'o', rot = 0 )
+        axForDraw.xaxis.set_label_text('Number of Sheep') 
         plotCounter = plotCounter + 1
 
     #plt.suptitle('3 Wolves')
-    fig.text(x = 0.5, y = 0.04, s = 'numWolves', ha = 'center', va = 'center')
-    fig.text(x = 0.05, y = 0.5, s = 'valuePriorEndTime', ha = 'center', va = 'center', rotation=90)
+    #fig.text(x = 0.5, y = 0.04, s = 'numWolves', ha = 'center', va = 'center')
+    #fig.text(x = 0.05, y = 0.5, s = 'valuePriorEndTime', ha = 'center', va = 'center', rotation=90)
     plt.show()
 
 if __name__ == '__main__':

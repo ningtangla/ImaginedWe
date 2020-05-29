@@ -19,7 +19,7 @@ from src.MDPChasing.envNoPhysics import Reset, StayInBoundaryByReflectVelocity, 
 IsTerminal, InterpolateOneFrame, TransitWithTerminalCheckOfInterpolation
 from src.MDPChasing.reward import RewardFunctionByTerminal
 from src.MDPChasing.trajectory import ForwardOneStep, SampleTrajectory
-from src.MDPChasing.policy import RandomPolicy
+from src.MDPChasing.policy import RandomPolicy, HeatSeekingDiscreteStochasticPolicy
 from src.MDPChasing.state import getStateOrActionFirstPersonPerspective, getStateOrActionThirdPersonPerspective
 from src.mathTools.distribution import sampleFromDistribution, maxFromDistribution, SoftDistribution
 from src.mathTools.soft import SoftMax
@@ -35,6 +35,7 @@ from src.sampleTrajectoryTools.trajectoriesSaveLoad import GetSavePath, readPara
         GenerateAllSampleIndexSavePaths, saveToPickle, loadFromPickle
 from src.sampleTrajectoryTools.evaluation import ComputeStatistics
 
+
 class SampleTrjactoriesForConditions:
     def __init__(self, numTrajectories, saveTrajectoryByParameters):
         self.numTrajectories = numTrajectories
@@ -45,6 +46,8 @@ class SampleTrjactoriesForConditions:
         numWolves = parameters['numWolves']
         numSheep = parameters['numSheep']
         valuePriorEndTime = parameters['valuePriorEndTime']
+        otherCompeteRate = parameters['otherCompeteRate']
+        competeDetectionRate = parameters['competeDetectionRate'] 
         
         ## MDP Env  
 	# state is all multi agent state # action is all multi agent action
@@ -65,7 +68,7 @@ class SampleTrjactoriesForConditions:
         numFramesToInterpolate = 3
         transit = TransitWithTerminalCheckOfInterpolation(numFramesToInterpolate, interpolateOneFrame, isTerminal)
 
-        maxRunningSteps = 51
+        maxRunningSteps = 100
         timeCost = 1/maxRunningSteps
         terminalBonus = 1
         rewardFunction = RewardFunctionByTerminal(timeCost, terminalBonus, isTerminal)
@@ -100,7 +103,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 2.0
+        softParameterInPlanningForSheep = 12.5
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -109,15 +112,6 @@ class SampleTrjactoriesForConditions:
 
 	# Wolves Part
 
-	# Intention Prior For inference
-        #createIntentionSpaceGivenSelfId = CreateIntentionSpaceGivenSelfId(possibleSheepIds, possibleWolvesIds)
-        #intentionSpacesForAllWolves = [createAllPossibleIntentionsGivenSelfId(wolfId) 
-        #        for wolfId in possibleWolvesIds]
-        intentionSpacesForAllWolves = [tuple(it.product(possibleSheepIds, [tuple(possibleWolvesIds)])) 
-                for wolfId in possibleWolvesIds]
-        print(intentionSpacesForAllWolves)
-        wolvesIntentionPriors = [{tuple(intention): 1/len(allPossibleIntentionsOneWolf) for intention in allPossibleIntentionsOneWolf} 
-                for allPossibleIntentionsOneWolf in intentionSpacesForAllWolves]        
         # Percept Action For Inference
         perceptAction = lambda action: action
         
@@ -146,7 +140,7 @@ class SampleTrjactoriesForConditions:
                 resBlockSize, initializationMethod, dropoutRate) for generateWolvesCentralControlModel in generateWolvesCentralControlModels] 
         NNNumSimulations = 250
         wolvesModelPaths = [os.path.join('..', '..', 'data', 'preTrainModel', 
-                'agentId='+str(len(actionSpace) * np.sum([10**_ for _ in
+                'agentId='+str(len(wolfIndividualActionSpace) * np.sum([10**_ for _ in
                 range(numInWe)]))+'_depth=9_learningRate=0.0001_maxRunningSteps=50_miniBatchSize=256_numSimulations='+str(NNNumSimulations)+'_trainSteps=50000') 
                 for numInWe in range(2, numWolves + 1)]
         print(wolvesModelPaths)
@@ -160,11 +154,24 @@ class SampleTrjactoriesForConditions:
         softPolicyInInference = SoftDistribution(softParameterInInference)
         policyForCommittedAgentsInInference = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInInference,
                 getStateOrActionThirdPersonPerspective)
-        concernedAgentsIds = possibleWolvesIds
+        concernedAgentsIds = [2]
         calCommittedAgentsPolicyLikelihood = CalCommittedAgentsPolicyLikelihood(concernedAgentsIds, policyForCommittedAgentsInInference)
         
-        randomPolicy = RandomPolicy(wolfIndividualActionSpace)
-        policyForUncommittedAgentsInInference = PolicyForUncommittedAgent(possibleWolvesIds, randomPolicy, 
+        numCompeteActionSpace = len(wolfIndividualActionSpace)
+        generateWolvesCompeteModels = [GenerateModel(numStateSpace, numCompeteActionSpace, regularizationFactor) 
+            for numStateSpace in numWolvesStateSpaces]
+        initWolvesCompeteModels =[generateWolvesCompeteModel(sharedWidths * wolfNNDepth, actionLayerWidths, valueLayerWidths, 
+                resBlockSize, initializationMethod, dropoutRate) for generateWolvesCompeteModel in generateWolvesCompeteModels] 
+        wolvesCompeteModelPaths = [os.path.join('..', '..', 'data', 'preTrainModel', 
+                'agentId=-1.'+str(numWolves)+'_depth=9_learningRate=0.0001_maxRunningSteps=50_miniBatchSize=256_numSimulations='+str(NNNumSimulations)+'_trainSteps=50000') 
+                for numInWe in range(2, numWolves + 1)]
+        wolvesCompeteNNModels = [restoreVariables(initWolvesCompeteModel, wolvesModelPath) 
+                for initWolvesCompeteModel, wolvesModelPath in zip(initWolvesCompeteModels, wolvesCompeteModelPaths)]
+        wolvesCompetePolicies = [ApproximatePolicy(NNModel, wolfIndividualActionSpace) 
+                for NNModel in wolvesCompeteNNModels] 
+        wolvesCompetePolicy = wolvesCompetePolicies[numWolves - 2]
+
+        policyForUncommittedAgentsInInference = PolicyForUncommittedAgent(possibleWolvesIds, wolvesCompetePolicy, 
                 softPolicyInInference, getStateOrActionFirstPersonPerspective)
         calUncommittedAgentsPolicyLikelihood = CalUncommittedAgentsPolicyLikelihood(possibleWolvesIds, 
                 concernedAgentsIds, policyForUncommittedAgentsInInference)
@@ -173,57 +180,67 @@ class SampleTrjactoriesForConditions:
         calJointLikelihood = lambda intention, state, perceivedAction: calCommittedAgentsPolicyLikelihood(intention, state, perceivedAction) * \
                 calUncommittedAgentsPolicyLikelihood(intention, state, perceivedAction)
 
-        # Infer and update Intention
-        variablesForAllWolves = [[intentionSpace] for intentionSpace in intentionSpacesForAllWolves]
-        jointHypothesisSpaces = [pd.MultiIndex.from_product(variables, names=['intention']) for variables in variablesForAllWolves]
-        concernedHypothesisVariable = ['intention']
-        priorDecayRate = 1
-        softPrior = SoftDistribution(priorDecayRate)
-        inferIntentionOneStepList = [InferOneStep(jointHypothesisSpace, concernedHypothesisVariable, 
-            calJointLikelihood, softPrior) for jointHypothesisSpace in jointHypothesisSpaces]
-
         wolvesValueListBasedOnNumAgentsInWe = [ApproximateValue(NNModel) 
                 for NNModel in wolvesCentralControlNNModels]
         calIntentionValueGivenState = CalIntentionValueGivenState(wolvesValueListBasedOnNumAgentsInWe)
-        softParamterForValue = 2
+        softParamterForValue = 0.01
         softValueToBuildDistribution = SoftMax(softParamterForValue)
         adjustIntentionPriorGivenValueOfState = AdjustIntentionPriorGivenValueOfState(calIntentionValueGivenState, softValueToBuildDistribution)
-
-        chooseIntention = sampleFromDistribution
-        updateIntentions = [UpdateIntention(intentionPrior, valuePriorEndTime, adjustIntentionPriorGivenValueOfState, 
-            perceptAction, inferIntentionOneStep, chooseIntention) 
-            for intentionPrior, inferIntentionOneStep in zip(wolvesIntentionPriors, inferIntentionOneStepList)]
-
-	# reset intention and adjuste intention prior attributes tools for multiple trajectory
-        intentionResetAttributes = ['timeStep', 'lastState', 'lastAction', 'intentionPrior', 'formerIntentionPriors']
-        intentionResetAttributeValues = [dict(zip(intentionResetAttributes, [0, None, None, intentionPrior, [intentionPrior]]))
-                for intentionPrior in wolvesIntentionPriors]
-        resetIntentions = ResetObjects(intentionResetAttributeValues, updateIntentions)
-        returnAttributes = ['formerIntentionPriors']
-        getIntentionDistributions = GetObjectsValuesOfAttributes(returnAttributes, updateIntentions)
-        attributesToRecord = ['lastAction']
-        recordActionForUpdateIntention = RecordValuesForObjects(attributesToRecord, updateIntentions) 
-
-	# Wovels Generate Action
-        softParameterInPlanning = 2.0
-        softPolicyInPlanning = SoftDistribution(softParameterInPlanning)
-        policyForCommittedAgentInPlanning = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInPlanning,
-                getStateOrActionThirdPersonPerspective)
         
-        policyForUncommittedAgentInPlanning = PolicyForUncommittedAgent(possibleWolvesIds, randomPolicy, softPolicyInPlanning,
-                getStateOrActionFirstPersonPerspective)
-        
-        wolfChooseActionMethod = sampleFromDistribution
-        getSelfActionThirdPersonPerspective = lambda weIds, selfId : list(weIds).index(selfId)
-        chooseCommittedAction = GetActionFromJointActionDistribution(wolfChooseActionMethod, getSelfActionThirdPersonPerspective)
-        chooseUncommittedAction = sampleFromDistribution
-        wolvesSampleIndividualActionGivenIntentionList = [SampleIndividualActionGivenIntention(selfId, policyForCommittedAgentInPlanning, 
-            policyForUncommittedAgentInPlanning, chooseCommittedAction, chooseUncommittedAction) 
-            for selfId in possibleWolvesIds]
-
         # Sample and Save Trajectory
         trajectoriesWithIntentionDists = []
         for trajectoryId in range(self.numTrajectories):
+	
+            # Intention Prior For inference
+            otherWolfPossibleIntentionSpaces = {0: [(0, (1, 2))], 1: [(0, ())]} 
+            otherIntentionType = np.random.choice([1, 0], p = [otherCompeteRate, 1 - otherCompeteRate])
+            otherWolfIntentionSpace = otherWolfPossibleIntentionSpaces[otherIntentionType]
+            selfPossibleIntentionSpaces = {0: [(0, (1, 2))], 0.5: [(0, (1, 2)), (0, ())], 1: [(0, ())]}
+            selfWolfIntentionSpace = selfPossibleIntentionSpaces[competeDetectionRate]
+            intentionSpacesForAllWolves = [selfWolfIntentionSpace, otherWolfIntentionSpace]
+            wolvesIntentionPriors = [{tuple(intention): 1/len(allPossibleIntentionsOneWolf) for intention in allPossibleIntentionsOneWolf} 
+                    for allPossibleIntentionsOneWolf in intentionSpacesForAllWolves]        
+            # Infer and update Intention
+            variablesForAllWolves = [[intentionSpace] for intentionSpace in intentionSpacesForAllWolves]
+            jointHypothesisSpaces = [pd.MultiIndex.from_product(variables, names=['intention']) for variables in variablesForAllWolves]
+            concernedHypothesisVariable = ['intention']
+            priorDecayRate = 1
+            softPrior = SoftDistribution(priorDecayRate)
+            inferIntentionOneStepList = [InferOneStep(jointHypothesisSpace, concernedHypothesisVariable, 
+                calJointLikelihood, softPrior) for jointHypothesisSpace in jointHypothesisSpaces]
+
+            chooseIntention = sampleFromDistribution
+            updateIntentions = [UpdateIntention(intentionPrior, valuePriorEndTime, adjustIntentionPriorGivenValueOfState, 
+                perceptAction, inferIntentionOneStep, chooseIntention) 
+                for intentionPrior, inferIntentionOneStep in zip(wolvesIntentionPriors, inferIntentionOneStepList)]
+
+            # reset intention and adjuste intention prior attributes tools for multiple trajectory
+            intentionResetAttributes = ['timeStep', 'lastState', 'lastAction', 'intentionPrior', 'formerIntentionPriors']
+            intentionResetAttributeValues = [dict(zip(intentionResetAttributes, [0, None, None, intentionPrior, [intentionPrior]]))
+                    for intentionPrior in wolvesIntentionPriors]
+            resetIntentions = ResetObjects(intentionResetAttributeValues, updateIntentions)
+            returnAttributes = ['formerIntentionPriors']
+            getIntentionDistributions = GetObjectsValuesOfAttributes(returnAttributes, updateIntentions)
+            attributesToRecord = ['lastAction']
+            recordActionForUpdateIntention = RecordValuesForObjects(attributesToRecord, updateIntentions) 
+
+            # Wovels Generate Action
+            softParameterInPlanning = 2.5
+            softPolicyInPlanning = SoftDistribution(softParameterInPlanning)
+            policyForCommittedAgentInPlanning = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInPlanning,
+                    getStateOrActionThirdPersonPerspective)
+            
+            policyForUncommittedAgentInPlanning = PolicyForUncommittedAgent(possibleWolvesIds, wolvesCompetePolicy, softPolicyInPlanning,
+                    getStateOrActionFirstPersonPerspective)
+            
+            wolfChooseActionMethod = sampleFromDistribution
+            getSelfActionThirdPersonPerspective = lambda weIds, selfId : list(weIds).index(selfId)
+            chooseCommittedAction = GetActionFromJointActionDistribution(wolfChooseActionMethod, getSelfActionThirdPersonPerspective)
+            chooseUncommittedAction = sampleFromDistribution
+            wolvesSampleIndividualActionGivenIntentionList = [SampleIndividualActionGivenIntention(selfId, policyForCommittedAgentInPlanning, 
+                policyForUncommittedAgentInPlanning, chooseCommittedAction, chooseUncommittedAction) 
+                for selfId in possibleWolvesIds]
+
             wolvesSampleActions = [SampleActionOnChangableIntention(updateIntention, wolvesSampleIndividualActionGivenIntention) 
                     for updateIntention, wolvesSampleIndividualActionGivenIntention in zip(updateIntentions, wolvesSampleIndividualActionGivenIntentionList)]
             allIndividualSampleActions = sheepSampleActions + wolvesSampleActions
@@ -234,18 +251,20 @@ class SampleTrjactoriesForConditions:
                     for SASRPair, intentionDist in zip(trajectory, intentionDistributions)]
             trajectoriesWithIntentionDists.append(tuple(trajectoryWithIntentionDists)) 
             resetIntentions()
-            #print(intentionDistributions)
+            #print(intentionDistributions[-1], otherCompeteRate)
         trajectoryFixedParameters = {'sheepPolicySoft': softParameterInPlanningForSheep, 'wolfPolicySoft': softParameterInPlanning,
-                'maxRunningSteps': maxRunningSteps, 'hierarchy': 0, 'NNNumSimulations':NNNumSimulations}
+                'maxRunningSteps': maxRunningSteps, 'competePolicy': 'NNCompete', 'NNNumSimulations':NNNumSimulations}
         self.saveTrajectoryByParameters(trajectoriesWithIntentionDists, trajectoryFixedParameters, parameters)
         print(np.mean([len(tra) for tra in trajectoriesWithIntentionDists]))
 
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numWolves'] = [3]
-    manipulatedVariables['numSheep'] = [2, 4, 8]
-    manipulatedVariables['valuePriorEndTime'] = [-100, 0, 100]
+    manipulatedVariables['numWolves'] = [2] # temp just 2
+    manipulatedVariables['numSheep'] = [1] # temp just 1
+    manipulatedVariables['valuePriorEndTime'] = [-100]
+    manipulatedVariables['otherCompeteRate'] = [0.0, 0.5, 1.0] # 0 never compete, 1 always compete
+    manipulatedVariables['competeDetectionRate'] = [0.5, 1.0] # 0 never detect compete, 1 only detect compete
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -255,7 +274,7 @@ def main():
 
 
     DIRNAME = os.path.dirname(__file__)
-    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateHierarchyPlanning',
+    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateCompeteDetection',
                                     'trajectories')
     if not os.path.exists(trajectoryDirectory):
         os.makedirs(trajectoryDirectory)
@@ -264,7 +283,7 @@ def main():
     getTrajectorySavePath = lambda trajectoryFixedParameters: GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
     saveTrajectoryByParameters = lambda trajectories, trajectoryFixedParameters, parameters: saveToPickle(trajectories, getTrajectorySavePath(trajectoryFixedParameters)(parameters))
    
-    numTrajectories = 500
+    numTrajectories = 200
     sampleTrajectoriesForConditions = SampleTrjactoriesForConditions(numTrajectories, saveTrajectoryByParameters)
     [sampleTrajectoriesForConditions(para) for para in parametersAllCondtion]
 

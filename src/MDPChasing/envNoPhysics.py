@@ -15,6 +15,24 @@ class Reset():
                      for _ in range(self.numOfAgnet)]
         return np.array(initState)
 
+class ResetObstacle():
+    def __init__(self, xBoundary, yBoundary, numOfAgent, isLegal=lambda state: True):
+        self.xBoundary = xBoundary
+        self.yBoundary = yBoundary
+        self.numOfAgnet = numOfAgent
+        self.isLegal = isLegal
+
+    def __call__(self):
+        xMin, xMax = self.xBoundary
+        yMin, yMax = self.yBoundary
+        initState = [[np.random.uniform(xMin, xMax),
+                      np.random.uniform(yMin, yMax)]
+                     for _ in range(self.numOfAgnet)]
+        while np.all([self.isLegal(state) for state in initState]) is False:
+            initState = [[np.random.uniform(xMin, xMax),
+                          np.random.uniform(yMin, yMax)]
+                         for _ in range(self.numOfAgnet)]
+        return np.array(initState)
 class InterpolateOneFrame():
     def __init__(self, stayInBoundaryByReflectVelocity):
         self.stayInBoundaryByReflectVelocity = stayInBoundaryByReflectVelocity

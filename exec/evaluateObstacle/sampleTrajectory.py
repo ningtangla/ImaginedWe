@@ -15,7 +15,7 @@ import itertools as it
 import pathos.multiprocessing as mp
 import math 
 
-from src.MDPChasing.envNoPhysics import Reset, StayInBoundaryByReflectVelocity, \
+from src.MDPChasing.envNoPhysics import Reset, ResetObstacle, StayInBoundaryByReflectVelocity, StayInBoundaryAndOutObstacleByReflectVelocity, \
 IsTerminal, InterpolateOneFrame, TransitWithTerminalCheckOfInterpolation
 from src.MDPChasing.reward import RewardFunctionByTerminal
 from src.MDPChasing.trajectory import ForwardOneStep, SampleTrajectory
@@ -48,10 +48,13 @@ class SampleTrjactoriesForConditions:
         
         ## MDP Env  
 	# state is all multi agent state # action is all multi agent action
-        xBoundary = [0,600]
-        yBoundary = [0,600]
         numOfAgent = numWolves + numSheep
-        reset = Reset(xBoundary, yBoundary, numOfAgent)
+        xBoundary = [0, 600]
+        yBoundary = [0, 600]
+        xObstacles = [[120, 220], [380, 480]]
+        yObstacles = [[120, 220], [380, 480]]
+        isLegal = lambda state: not(np.any([(xObstacle[0] < state[0]) and (xObstacle[1] > state[0]) and (yObstacle[0] < state[1]) and (yObstacle[1] > state[1]) for xObstacle, yObstacle in zip(xObstacles, yObstacles)]))
+        reset = ResetObstacle(xBoundary, yBoundary, numOfAgent, isLegal)
 
         possibleSheepIds = list(range(numSheep))
         possibleWolvesIds = list(range(numSheep, numSheep + numWolves))
@@ -60,8 +63,8 @@ class SampleTrjactoriesForConditions:
         killzoneRadius = 50
         isTerminal = IsTerminal(killzoneRadius, getSheepStatesFromAll, getWolvesStatesFromAll)
 
-        stayInBoundaryByReflectVelocity = StayInBoundaryByReflectVelocity(xBoundary, yBoundary)
-        interpolateOneFrame = InterpolateOneFrame(stayInBoundaryByReflectVelocity)
+        stayInBoundaryAndOutObstacleByReflectVelocity = StayInBoundaryAndOutObstacleByReflectVelocity(xBoundary, yBoundary, xObstacles, yObstacles)
+        interpolateOneFrame = InterpolateOneFrame(stayInBoundaryAndOutObstacleByReflectVelocity)
         numFramesToInterpolate = 3
         transit = TransitWithTerminalCheckOfInterpolation(numFramesToInterpolate, interpolateOneFrame, isTerminal)
 
@@ -80,7 +83,7 @@ class SampleTrjactoriesForConditions:
         numSheepPolicyStateSpace = 2 * (numWolves + 1)
         sheepActionSpace = [(10, 0), (7, 7), (0, 10), (-7, 7),
                        (-10, 0), (-7, -7), (0, -10), (7, -7), (0, 0)]
-        preyPowerRatio = 12
+        preyPowerRatio = 13
         sheepIndividualActionSpace = list(map(tuple, np.array(sheepActionSpace) * preyPowerRatio))
         numSheepActionSpace = len(sheepIndividualActionSpace)
         regularizationFactor = 1e-4
@@ -94,8 +97,8 @@ class SampleTrjactoriesForConditions:
         initializationMethod = 'uniform'
         initSheepModel = generateSheepModel(sharedWidths * sheepNNDepth, actionLayerWidths, valueLayerWidths, 
                 resBlockSize, initializationMethod, dropoutRate)
-        sheepModelPath = os.path.join('..', '..', 'data', 'preTrainModel',
-                'agentId=0.'+str(numWolves)+'_depth=9_learningRate=0.0001_maxRunningSteps=50_miniBatchSize=256_numSimulations=110_trainSteps=50000')
+        sheepModelPath = os.path.join('..', '..', 'data', 'preTrainModel', 'obstacleModels',
+                'agentId=0.'+str(numWolves)+'_depth=9_killzoneRadius=50_maxRunningSteps=50_numSimulations=250')
         sheepNNModel = restoreVariables(initSheepModel, sheepModelPath)
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
@@ -125,8 +128,8 @@ class SampleTrjactoriesForConditions:
         numWolvesStateSpaces = [2 * (numInWe + 1) 
                 for numInWe in range(2, numWolves + 1)]
         actionSpace = [(10, 0), (7, 7), (0, 10), (-7, 7),
-                       (-10, 0), (-7, -7), (0, -10), (7, -7)]
-        predatorPowerRatio = 8
+                       (-10, 0), (-7, -7), (0, -10), (7, -7), (0, 0)]
+        predatorPowerRatio = 9
         wolfIndividualActionSpace = list(map(tuple, np.array(actionSpace) * predatorPowerRatio))
         wolvesCentralControlActionSpaces = [list(it.product(wolfIndividualActionSpace, repeat = numInWe)) 
                 for numInWe in range(2, numWolves + 1)]
@@ -145,9 +148,9 @@ class SampleTrjactoriesForConditions:
         initWolvesCentralControlModels = [generateWolvesCentralControlModel(sharedWidths * wolfNNDepth, actionLayerWidths, valueLayerWidths, 
                 resBlockSize, initializationMethod, dropoutRate) for generateWolvesCentralControlModel in generateWolvesCentralControlModels] 
         NNNumSimulations = 250
-        wolvesModelPaths = [os.path.join('..', '..', 'data', 'preTrainModel', 
+        wolvesModelPaths = [os.path.join('..', '..', 'data', 'preTrainModel', 'obstacleModels', 
                 'agentId='+str(len(actionSpace) * np.sum([10**_ for _ in
-                range(numInWe)]))+'_depth=9_learningRate=0.0001_maxRunningSteps=50_miniBatchSize=256_numSimulations='+str(NNNumSimulations)+'_trainSteps=50000') 
+                range(numInWe)]))+'_depth=9_killzoneRadius=50_maxRunningSteps=50_numSimulations=250')
                 for numInWe in range(2, numWolves + 1)]
         print(wolvesModelPaths)
         wolvesCentralControlNNModels = [restoreVariables(initWolvesCentralControlModel, wolvesModelPath) 
@@ -243,9 +246,9 @@ class SampleTrjactoriesForConditions:
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numWolves'] = [3]
+    manipulatedVariables['numWolves'] = [2]
     manipulatedVariables['numSheep'] = [2, 4, 8]
-    manipulatedVariables['valuePriorEndTime'] = [-100, 0, 100]
+    manipulatedVariables['valuePriorEndTime'] = [-100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -255,7 +258,7 @@ def main():
 
 
     DIRNAME = os.path.dirname(__file__)
-    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateHierarchyPlanning',
+    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateObstacle',
                                     'trajectories')
     if not os.path.exists(trajectoryDirectory):
         os.makedirs(trajectoryDirectory)
@@ -264,7 +267,7 @@ def main():
     getTrajectorySavePath = lambda trajectoryFixedParameters: GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
     saveTrajectoryByParameters = lambda trajectories, trajectoryFixedParameters, parameters: saveToPickle(trajectories, getTrajectorySavePath(trajectoryFixedParameters)(parameters))
    
-    numTrajectories = 500
+    numTrajectories = 200
     sampleTrajectoriesForConditions = SampleTrjactoriesForConditions(numTrajectories, saveTrajectoryByParameters)
     [sampleTrajectoriesForConditions(para) for para in parametersAllCondtion]
 

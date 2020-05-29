@@ -36,8 +36,11 @@ class CalCommittedAgentsPolicyLikelihood:
             jointDf = pd.DataFrame(list(jointActionDistribution.values()), jointDfIndex, columns = ['likelihood'])
             marginalDf = jointDf.groupby([str(Id) for Id in committedAgentIds]).sum()
             marginalLikelihood = marginalDf['likelihood'].to_dict()
-            action = tuple([tuple(individualAction) 
-                for individualAction in np.array(percivedAction)[list(committedAgentIds)]])
+            if len(committedAgentIds) == 1:
+                action = tuple(percivedAction[committedAgentIds[0]])
+            else:
+                action = tuple([tuple(individualAction) 
+                    for individualAction in np.array(percivedAction)[list(committedAgentIds)]])
             committedAgentsPolicyLikelihood = marginalLikelihood[action]
         return committedAgentsPolicyLikelihood
 

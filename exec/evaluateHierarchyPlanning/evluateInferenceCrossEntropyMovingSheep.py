@@ -119,8 +119,8 @@ def main():
    
     NNNumSimulations = 250
     maxRunningSteps = 51
-    wolfPolicySoft = 2.5
-    sheepPolicySoft = 2.5
+    wolfPolicySoft = 2.0
+    sheepPolicySoft = 2.0
     numWolves = 2
     trajectoryFixedParameters = {'numWolves': numWolves, 'wolfPolicySoft': wolfPolicySoft, 'sheepPolicySoft': sheepPolicySoft, 
             'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations}

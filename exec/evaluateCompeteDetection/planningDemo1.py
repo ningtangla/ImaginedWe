@@ -16,46 +16,47 @@ import pygame as pg
 from pygame.color import THECOLORS
 
 from src.visualization.drawDemo import DrawBackground, DrawCircleOutside, DrawState, ChaseTrialWithTraj, InterpolateState
-from src.chooseFromDistribution import sampleFromDistribution, maxFromDistribution
-from src.trajectoriesSaveLoad import GetSavePath, readParametersFromDf, LoadTrajectories, SaveAllTrajectories, \
-    GenerateAllSampleIndexSavePaths, saveToPickle, loadFromPickle
-from src.MDPChasing.envNoPhysics import TransitForNoPhysics, StayInBoundaryByReflectVelocity
-from src.MDPChasing.policies import SoftPolicy
+from src.mathTools.distribution import sampleFromDistribution, maxFromDistribution, SoftDistribution
+from src.sampleTrajectoryTools.trajectoriesSaveLoad import GetSavePath, readParametersFromDf, LoadTrajectories, SaveAllTrajectories, \
+        GenerateAllSampleIndexSavePaths, saveToPickle, loadFromPickle
+from src.MDPChasing.envNoPhysics import Reset, StayInBoundaryByReflectVelocity, \
+IsTerminal, InterpolateOneFrame, TransitWithTerminalCheckOfInterpolation
 
-def updateColorSpace(colorSpace, posterior, intentionSpace, imaginedWeIds):
-    intentionProbabilities = np.mean([[max(0, 1 * (posterior[individualId][intention] - 1/len(intentionSpace))) 
-        for intention in intentionSpace] for individualId in imaginedWeIds], axis = 0)
-    colorRepresentProbability = np.array([np.array([0, 170, 0]) * probability for probability in intentionProbabilities]) + np.array(
-            [colorSpace[intention[0]] for intention in intentionSpace])
+def updateColorSpace(colorSpace, posterior, selfPosteriorIndex, concernedAgentId, competeIntention, cooperateIntention):
+    competeProbability = posterior[selfPosteriorIndex][competeIntention]
+    cooperateProbability = posterior[selfPosteriorIndex][cooperateIntention]
+    colorRepresentProbability = np.array([0, 0, 255]) * competeProbability + np.array([255, 0, 0]) * cooperateProbability
     updatedColorSpace = np.array(colorSpace).copy()
-    updatedColorSpace[[intention[0] for intention in intentionSpace]] = colorRepresentProbability
+    updatedColorSpace[concernedAgentId] = colorRepresentProbability
     return updatedColorSpace
 
 def main():
     DIRNAME = os.path.dirname(__file__)
-    #trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateIntentionInPlanningWithHierarchyGuidedMCTSBothWolfSheep',
-    #                                'trajectories')
-    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateIntentionInPlanningWithHierarchy',
+    trajectoryDirectory = os.path.join(DIRNAME, '..', '..', 'data', 'evaluateCompeteDetection',
                                     'trajectories')
     if not os.path.exists(trajectoryDirectory):
         os.makedirs(trajectoryDirectory)
     
-    NNNumSimulations = 400
-    maxRunningSteps = 50
-    softParameterInPlanning = 12.5
-    sheepPolicyName = 'sampleNNPolicy'
-    wolfPolicyName = 'sampleNNPolicy'
-    hierarchy = 0
-    trajectoryFixedParameters = {'priorType': 'uniformPrior', 'sheepPolicy': sheepPolicyName, 'wolfPolicy': wolfPolicyName,
-            'policySoftParameter': softParameterInPlanning, 'maxRunningSteps': maxRunningSteps, 'hierarchy': hierarchy, 'NNNumSimulations': NNNumSimulations}
+    NNNumSimulations = 250
+    maxRunningSteps = 60
+    softParameterInPlanningForSheep = 1.0
+    softParameterInPlanning = 2.5
+    trajectoryFixedParameters = {'sheepPolicySoft': softParameterInPlanningForSheep, 'wolfPolicySoft': softParameterInPlanning,
+            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations':NNNumSimulations}
     trajectoryExtension = '.pickle'
     getTrajectorySavePath = GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
 
     # Compute Statistics on the Trajectories
     loadTrajectories = LoadTrajectories(getTrajectorySavePath, loadFromPickle)
-    numWolves = 3
+    numWolves = 2
     numSheep = 1
-    trajectoryParameters = {'numWolves': numWolves, 'numSheep': numSheep}
+    competePolicy = 'heatseeking'
+    heatseekingPrecesion = 1.83
+    otherCompeteRate = 0.0
+    competeDetectionRate = 0.5
+    inferenceSoft = 0.6
+    trajectoryParameters = {'heatseekingPrecesion': heatseekingPrecesion, 'inferenceSoft': inferenceSoft, 'numWolves': numWolves, 'numSheep': numSheep,
+            'competePolicy': competePolicy, 'otherCompeteRate': otherCompeteRate, 'competeDetectionRate': competeDetectionRate}
     trajectories = loadTrajectories(trajectoryParameters) 
     # generate demo image
     screenWidth = 600
@@ -69,28 +70,34 @@ def main():
     drawBackground = DrawBackground(screen, screenColor, xBoundary, yBoundary, lineColor, lineWidth)
     
     FPS = 30
-    circleColorSpace = [[100, 100, 100]]*numSheep + [[255, 255, 255]] * numWolves
+    circleColorSpace = [[0, 255, 0]]*numSheep + [[255, 0, 0]] * numWolves
     circleSize = 10
     positionIndex = [0, 1]
     agentIdsToDraw = list(range(numSheep + numWolves))
+    #saveImage = False
     saveImage = True
     imageSavePath = os.path.join(trajectoryDirectory, 'picMovingSheep')
     if not os.path.exists(imageSavePath):
         os.makedirs(imageSavePath)
-    imageFolderName = str(trajectoryParameters)
+    imageFolderName = str('forDemo')
     saveImageDir = os.path.join(os.path.join(imageSavePath, imageFolderName))
     if not os.path.exists(saveImageDir):
         os.makedirs(saveImageDir)
-    intentionSpace = list(it.product(range(numSheep)))
+    goalSpace = list(range(numSheep))
     imaginedWeIdsForInferenceSubject = list(range(numSheep, numWolves + numSheep))
-    softParameter = 1
-    softFunction = SoftPolicy(softParameter)
+    softParameter = 1.5
+    softFunction = SoftDistribution(softParameter)
+    selfPosteriorIndex = 0
+    concernedAgentId = 2
+    competeIntention = (0, ())
+    cooperateIntention = (0, tuple(range(numSheep, numSheep + numWolves)))
     updateColorSpaceByPosterior = lambda colorSpace, posterior : updateColorSpace(
-            colorSpace, [softFunction(individualPosterior) for individualPosterior in posterior], intentionSpace, imaginedWeIdsForInferenceSubject)
+            colorSpace, [softFunction(individualPosterior) for individualPosterior in posterior], 
+            selfPosteriorIndex, concernedAgentId, competeIntention, cooperateIntention)
     
     #updateColorSpaceByPosterior = lambda originalColorSpace, posterior : originalColorSpace
     outsideCircleAgentIds = imaginedWeIdsForInferenceSubject
-    outsideCircleColor = np.array([[255, 0, 0]] * numWolves)
+    outsideCircleColor = np.array([[0, 0, 0]] * numWolves)
     outsideCircleSize = 15 
     drawCircleOutside = DrawCircleOutside(screen, outsideCircleAgentIds, positionIndex, outsideCircleColor, outsideCircleSize)
     drawState = DrawState(FPS, screen, circleColorSpace, circleSize, agentIdsToDraw, positionIndex, 
@@ -100,13 +107,13 @@ def main():
     xBoundary = [0,600]
     yBoundary = [0,600]
     stayInBoundaryByReflectVelocity = StayInBoundaryByReflectVelocity(xBoundary, yBoundary)
-    transit = TransitForNoPhysics(stayInBoundaryByReflectVelocity)
+    transit = InterpolateOneFrame(stayInBoundaryByReflectVelocity)
     numFramesToInterpolate = 5
     interpolateState = InterpolateState(numFramesToInterpolate, transit)
     
     stateIndexInTimeStep = 0
     actionIndexInTimeStep = 1
-    posteriorIndexInTimeStep = 3
+    posteriorIndexInTimeStep = 4
     chaseTrial = ChaseTrialWithTraj(stateIndexInTimeStep, drawState, interpolateState, actionIndexInTimeStep, posteriorIndexInTimeStep)
     
     print(len(trajectories))
@@ -115,7 +122,7 @@ def main():
     print(index)
     print(trajectories[0][1])
     #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:10]]]
-    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[5:]]]
+    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:1]]]
 
 if __name__ == '__main__':
     main()

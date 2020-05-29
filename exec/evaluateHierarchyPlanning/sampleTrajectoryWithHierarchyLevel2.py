@@ -100,7 +100,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 2.5
+        softParameterInPlanningForSheep = 2.0
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -207,11 +207,13 @@ class SampleTrjactoriesForConditions:
         attributesToRecord = ['lastAction']
         recordActionForUpdateIntention = RecordValuesForObjects(attributesToRecord, updateIntentions) 
 
-        numStateSpaceLevel2 = 2 * (1 + numWolves) * 2 - 2
+        numWolvesLevel2StateSpaces = [2 * (numInWe + 1) * 2 - 2 
+                for numInWe in range(2, numWolves + 1)]
         wolfLevel2ActionSpace = [-1, 0, 1]
         numWolfLevel2ActionSpace = len(wolfLevel2ActionSpace)
         regularizationFactor = 1e-4
-        generatewolfLevel2Models = [GenerateModel(numStateSpaceLevel2, numWolfLevel2ActionSpace, regularizationFactor) for numStateSpace in numWolvesStateSpaces]
+        generatewolfLevel2Models = [GenerateModel(numStateSpace, numWolfLevel2ActionSpace, regularizationFactor) 
+                for numStateSpace in numWolvesLevel2StateSpaces]
         sharedWidths = [128]
         actionLayerWidths = [128]
         valueLayerWidths = [128]
@@ -236,7 +238,7 @@ class SampleTrjactoriesForConditions:
         getStateFirstPersonPerspectiveForLevel2CommittedPolicyMethods = [composeGetStateFirstPersonPerspectiveForCommittedAgent(selfId) 
                 for selfId in possibleWolvesIds]
 
-        softParameterInPlanning = 2.5
+        softParameterInPlanning = 1.0
         softPolicyInPlanning = SoftDistribution(softParameterInPlanning)
         level1PolicyForCommittedAgentInPlanning = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInPlanning,
                 getStateOrActionThirdPersonPerspective)
@@ -304,7 +306,7 @@ def main():
     getTrajectorySavePath = lambda trajectoryFixedParameters: GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
     saveTrajectoryByParameters = lambda trajectories, trajectoryFixedParameters, parameters: saveToPickle(trajectories, getTrajectorySavePath(trajectoryFixedParameters)(parameters))
    
-    numTrajectories = 200
+    numTrajectories = 500
     sampleTrajectoriesForConditions = SampleTrjactoriesForConditions(numTrajectories, saveTrajectoryByParameters)
     [sampleTrajectoriesForConditions(para) for para in parametersAllCondtion]
 
