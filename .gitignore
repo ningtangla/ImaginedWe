@@ -5,3 +5,7 @@ demo
 *.pyc
 results
 tbdata*
+*tensorBoard
+tensorBoard*
+
+
