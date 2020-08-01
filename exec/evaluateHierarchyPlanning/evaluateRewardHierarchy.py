@@ -39,10 +39,10 @@ from src.sampleTrajectoryTools.evaluation import ComputeStatistics
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numWolves'] = [2]
-    manipulatedVariables['numSheep'] = [2, 4, 8]#, 4, 8]
+    manipulatedVariables['numWolves'] = [3]
+    manipulatedVariables['numSheep'] = [2, 4, 8]
     manipulatedVariables['hierarchy'] = [0]
-    manipulatedVariables['valuePriorEndTime'] = [-100, 0, 100]#[-100, 0, 100]
+    manipulatedVariables['valuePriorEndTime'] = [-100]#[-100, 0, 100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -59,10 +59,11 @@ def main():
    
     NNNumSimulations = 250
     maxRunningSteps = 51
-    wolfPolicySoft = 2.5
-    sheepPolicySoft = 2.5
+    wolfPolicySoft = 2.0
+    sheepPolicySoft = 2.0
+    valuePriorSoftMaxBeta = 0.0
     trajectoryFixedParameters = {'wolfPolicySoft': wolfPolicySoft, 'sheepPolicySoft': sheepPolicySoft, 
-            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations}
+            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations, 'valuePriorSoftMaxBeta': valuePriorSoftMaxBeta}
     trajectoryExtension = '.pickle'
     getTrajectorySavePath = GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
     

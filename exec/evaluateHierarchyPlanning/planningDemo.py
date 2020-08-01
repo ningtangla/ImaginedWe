@@ -23,7 +23,7 @@ from src.MDPChasing.envNoPhysics import Reset, StayInBoundaryByReflectVelocity, 
 IsTerminal, InterpolateOneFrame, TransitWithTerminalCheckOfInterpolation
 
 def updateColorSpace(colorSpace, posterior, goalSpace, imaginedWeIds):
-    goalProbabilities = np.mean([[max(0, 1 * (posterior[individualIndex][(goalId, tuple(imaginedWeIds))] - 1/len(goalSpace))) 
+    goalProbabilities = np.mean([[max(0, 1 * (posterior[individualIndex][(goalId, tuple(imaginedWeIds))] - 0.5/len(goalSpace))) 
         for goalId in goalSpace] for individualIndex in range(len(imaginedWeIds))], axis = 0) #goalId, weIds = intention(in posterior)
     colorRepresentProbability = np.array([np.array([0, 170, 0]) * probability for probability in goalProbabilities]) + np.array(
             [colorSpace[goalId] for goalId in goalSpace])
@@ -39,9 +39,9 @@ def main():
         os.makedirs(trajectoryDirectory)
     
     NNNumSimulations = 250
-    maxRunningSteps = 51
-    softParameterInPlanningForSheep = 2.0
-    softParameterInPlanning = 2.0
+    maxRunningSteps = 52
+    softParameterInPlanningForSheep = 2.5
+    softParameterInPlanning = 2.5
     hierarchy = 0
     trajectoryFixedParameters = {'sheepPolicySoft': softParameterInPlanningForSheep, 'wolfPolicySoft': softParameterInPlanning,
             'maxRunningSteps': maxRunningSteps, 'hierarchy': hierarchy, 'NNNumSimulations':NNNumSimulations}
@@ -50,10 +50,15 @@ def main():
 
     # Compute Statistics on the Trajectories
     loadTrajectories = LoadTrajectories(getTrajectorySavePath, loadFromPickle)
-    numWolves = 3
+    numWolves = 2
     numSheep = 2
     valuePriorEndTime = -100
-    trajectoryParameters = {'numWolves': numWolves, 'numSheep': numSheep, 'valuePriorEndTime': valuePriorEndTime}
+    valuePriorSoftMaxBeta = 0.0
+    trajectoryParameters = {'numWolves': numWolves, 'numSheep': numSheep, 'valuePriorEndTime': valuePriorEndTime, 
+            'valuePriorSoftMaxBeta': valuePriorSoftMaxBeta}
+    wolfType = 'sharedReward'
+    #trajectoryParameters.update({'wolfType': wolfType})
+    
     trajectories = loadTrajectories(trajectoryParameters) 
     # generate demo image
     screenWidth = 600
@@ -66,7 +71,7 @@ def main():
     lineWidth = 4
     drawBackground = DrawBackground(screen, screenColor, xBoundary, yBoundary, lineColor, lineWidth)
     
-    FPS = 24
+    FPS = 32
     circleColorSpace = [[100, 100, 100]]*numSheep + [[255, 255, 255]] * numWolves
     circleSize = 10
     positionIndex = [0, 1]
@@ -81,7 +86,7 @@ def main():
         os.makedirs(saveImageDir)
     goalSpace = list(range(numSheep))
     imaginedWeIdsForInferenceSubject = list(range(numSheep, numWolves + numSheep))
-    softParameter = 0.2
+    softParameter = 1
     softFunction = SoftDistribution(softParameter)
     updateColorSpaceByPosterior = lambda colorSpace, posterior : updateColorSpace(
             colorSpace, [softFunction(individualPosterior) for individualPosterior in posterior], goalSpace, imaginedWeIdsForInferenceSubject)
@@ -99,7 +104,7 @@ def main():
     yBoundary = [0,600]
     stayInBoundaryByReflectVelocity = StayInBoundaryByReflectVelocity(xBoundary, yBoundary)
     transit = InterpolateOneFrame(stayInBoundaryByReflectVelocity)
-    numFramesToInterpolate = 5
+    numFramesToInterpolate = 7
     interpolateState = InterpolateState(numFramesToInterpolate, transit)
     
     stateIndexInTimeStep = 0
@@ -112,8 +117,9 @@ def main():
     index = np.argsort(-np.array(lens))
     print(index)
     print(trajectories[0][1])
-    #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:10]]]
-    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:1]]]
+    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:10]]]
+    print([len(trajectory) for trajectory in np.array(trajectories)[index[:]]])
+    #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[13:14]]]
 
 if __name__ == '__main__':
     main()

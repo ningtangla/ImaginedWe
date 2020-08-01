@@ -45,6 +45,24 @@ class DrawCircleOutside:
             pg.draw.circle(self.screen, agentColor, agentPos, self.circleSize)
         return
 
+class DrawCircleOutsideEnvMADDPG:
+    def __init__(self, screen, viewRatio, outsideCircleAgentIds, positionIndex, circleColors, circleSize):
+        self.screen = screen
+        self.viewRatio = viewRatio
+        self.screenX, self.screenY = self.screen.get_width(), self.screen.get_height()
+        self.outsideCircleAgentIds = outsideCircleAgentIds
+        self.xIndex, self.yIndex = positionIndex
+        self.circleColors = circleColors
+        self.circleSize = circleSize
+
+    def __call__(self, state):
+        for agentIndex in self.outsideCircleAgentIds:
+            agentPos = [np.int((state[agentIndex][self.xIndex] / self.viewRatio + 1) * (self.screenX / 2)), 
+                    np.int((state[agentIndex][self.yIndex] / self.viewRatio + 1) * (self.screenY / 2))]
+            agentColor = tuple(self.circleColors[list(self.outsideCircleAgentIds).index(agentIndex)])
+            pg.draw.circle(self.screen, agentColor, agentPos, self.circleSize)
+        return
+
 class DrawState:
     def __init__(self, fps, screen, colorSpace, circleSize, agentIdsToDraw, positionIndex, saveImage, imagePath, 
             drawBackGround, updateColorByPosterior = None, drawCircleOutside = None):
@@ -64,7 +82,7 @@ class DrawState:
         fpsClock = pg.time.Clock()
         
         self.drawBackGround()
-        if posterior:
+        if posterior and self.updateColorByPosterior:
             circleColors = self.updateColorByPosterior(self.colorSpace, posterior)
         else:
             circleColors = self.colorSpace
@@ -74,6 +92,49 @@ class DrawState:
             agentPos = [np.int(state[agentIndex][self.xIndex]), np.int(state[agentIndex][self.yIndex])]
             agentColor = tuple(circleColors[agentIndex])
             pg.draw.circle(self.screen, agentColor, agentPos, self.circleSize)
+
+        pg.display.flip()
+        
+        if self.saveImage == True:
+            filenameList = os.listdir(self.imagePath)
+            pg.image.save(self.screen, self.imagePath + '/' + str(len(filenameList))+'.png')
+        
+        fpsClock.tick(self.fps)
+        return self.screen
+
+class DrawStateEnvMADDPG:
+    def __init__(self, fps, screen, viewRatio, colorSpace, circleSizeSpace, agentIdsToDraw, positionIndex, saveImage, imagePath, 
+            drawBackGround, updateColorByPosterior = None, drawCircleOutside = None):
+        self.fps = fps
+        self.screen = screen
+        self.viewRatio = viewRatio
+        self.screenX, self.screenY = self.screen.get_width(), self.screen.get_height()
+        self.colorSpace = colorSpace
+        self.circleSizeSpace = circleSizeSpace
+        self.agentIdsToDraw = agentIdsToDraw
+        self.xIndex, self.yIndex = positionIndex
+        self.saveImage = saveImage
+        self.imagePath = imagePath
+        self.drawBackGround = drawBackGround
+        self.updateColorByPosterior = updateColorByPosterior
+        self.drawCircleOutside = drawCircleOutside
+
+    def __call__(self, state, posterior = None):
+        fpsClock = pg.time.Clock()
+        
+        self.drawBackGround()
+        if posterior and self.updateColorByPosterior:
+            circleColors = self.updateColorByPosterior(self.colorSpace, posterior)
+        else:
+            circleColors = self.colorSpace
+        if self.drawCircleOutside:
+            self.drawCircleOutside(state)
+        for agentIndex in self.agentIdsToDraw:
+            agentPos = [np.int((state[agentIndex][self.xIndex] / self.viewRatio + 1) * (self.screenX / 2)), 
+                    np.int((state[agentIndex][self.yIndex] / self.viewRatio + 1) * (self.screenY / 2))]
+            agentColor = tuple(circleColors[agentIndex])
+            circleSize = self.circleSizeSpace[agentIndex]
+            pg.draw.circle(self.screen, agentColor, agentPos, circleSize)
 
         pg.display.flip()
         

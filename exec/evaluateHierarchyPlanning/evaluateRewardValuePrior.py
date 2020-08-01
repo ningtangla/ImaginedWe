@@ -42,7 +42,8 @@ def main():
     manipulatedVariables['numWolves'] = [2]
     manipulatedVariables['numSheep'] = [2, 4, 8]#, 4, 8]
     manipulatedVariables['hierarchy'] = [0]
-    manipulatedVariables['valuePriorEndTime'] = [-100, 0]#[-100, 0, 100]
+    manipulatedVariables['valuePriorSoftMaxBeta'] = [0.0, 1.0, 2.0, 3.0, 4.0]
+    manipulatedVariables['valuePriorEndTime'] = [0]#[-100, 0, 100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -81,18 +82,18 @@ def main():
     numRows = len(manipulatedVariables['hierarchy'])
     plotCounter = 1
 
-    for key, group in statisticsDf.groupby(['hierarchy', 'numWolves']):
-        group.index = group.index.droplevel(['hierarchy', 'numWolves'])
+    for key, group in statisticsDf.groupby(['valuePriorEndTime', 'hierarchy', 'numWolves']):
+        group.index = group.index.droplevel(['valuePriorEndTime', 'hierarchy', 'numWolves'])
         axForDraw = fig.add_subplot(numRows, numColumns, plotCounter)
         axForDraw.set_ylabel('Accumulated Reward')
         #axForDraw.set_ylabel(str(numWolves))
         
         #if plotCounter <= numColumns:
         #    axForDraw.set_title(str(key[1]) + 'Wolves')
-        valuePriorLabels = ['No Value Prior', 'Value Prior']# First Time Step', 'Value Prior Every Time Step ']
-        for valuePriorEndTime, grp in group.groupby('valuePriorEndTime'):
-            grp.index = grp.index.droplevel('valuePriorEndTime')
-            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = valuePriorLabels[int(valuePriorEndTime/100)+1], ylim = (0.2, 0.7), marker = 'o', rot = 0 )
+        #valuePriorLabels = ['No Value Prior', 'Value Prior']# First Time Step', 'Value Prior Every Time Step ']
+        for beta, grp in group.groupby('valuePriorSoftMaxBeta'):
+            grp.index = grp.index.droplevel('valuePriorSoftMaxBeta')
+            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = 'Value SofMax Beta = '+str(beta/2), ylim = (0.2, 0.7), marker = 'o', rot = 0 )
         axForDraw.xaxis.set_label_text('Number of Sheep') 
         plotCounter = plotCounter + 1
 

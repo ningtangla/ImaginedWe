@@ -44,6 +44,7 @@ class SampleTrjactoriesForConditions:
         print(parameters)
         numWolves = parameters['numWolves']
         numSheep = parameters['numSheep']
+        softParamterForValue = parameters['valuePriorSoftMaxBeta']
         valuePriorEndTime = parameters['valuePriorEndTime']
         
         ## MDP Env  
@@ -57,15 +58,15 @@ class SampleTrjactoriesForConditions:
         possibleWolvesIds = list(range(numSheep, numSheep + numWolves))
         getSheepStatesFromAll = lambda state: np.array(state)[possibleSheepIds]
         getWolvesStatesFromAll = lambda state: np.array(state)[possibleWolvesIds]
-        killzoneRadius = 50
+        killzoneRadius = 25
         isTerminal = IsTerminal(killzoneRadius, getSheepStatesFromAll, getWolvesStatesFromAll)
 
         stayInBoundaryByReflectVelocity = StayInBoundaryByReflectVelocity(xBoundary, yBoundary)
         interpolateOneFrame = InterpolateOneFrame(stayInBoundaryByReflectVelocity)
-        numFramesToInterpolate = 3
+        numFramesToInterpolate = 5
         transit = TransitWithTerminalCheckOfInterpolation(numFramesToInterpolate, interpolateOneFrame, isTerminal)
 
-        maxRunningSteps = 51
+        maxRunningSteps = 52
         timeCost = 1/maxRunningSteps
         terminalBonus = 1
         rewardFunction = RewardFunctionByTerminal(timeCost, terminalBonus, isTerminal)
@@ -100,7 +101,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 2.0
+        softParameterInPlanningForSheep = 2.5
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -181,11 +182,12 @@ class SampleTrjactoriesForConditions:
         softPrior = SoftDistribution(priorDecayRate)
         inferIntentionOneStepList = [InferOneStep(jointHypothesisSpace, concernedHypothesisVariable, 
             calJointLikelihood, softPrior) for jointHypothesisSpace in jointHypothesisSpaces]
+        if numSheep == 1:
+            inferIntentionOneStepList = [lambda intentionPrior, state, perceivedAction: intentionPrior] * numWolves
 
         wolvesValueListBasedOnNumAgentsInWe = [ApproximateValue(NNModel) 
                 for NNModel in wolvesCentralControlNNModels]
         calIntentionValueGivenState = CalIntentionValueGivenState(wolvesValueListBasedOnNumAgentsInWe)
-        softParamterForValue = 2
         softValueToBuildDistribution = SoftMax(softParamterForValue)
         adjustIntentionPriorGivenValueOfState = AdjustIntentionPriorGivenValueOfState(calIntentionValueGivenState, softValueToBuildDistribution)
 
@@ -205,7 +207,7 @@ class SampleTrjactoriesForConditions:
         recordActionForUpdateIntention = RecordValuesForObjects(attributesToRecord, updateIntentions) 
 
 	# Wovels Generate Action
-        softParameterInPlanning = 2.0
+        softParameterInPlanning = 2.5
         softPolicyInPlanning = SoftDistribution(softParameterInPlanning)
         policyForCommittedAgentInPlanning = PolicyForCommittedAgent(centralControlPolicyListBasedOnNumAgentsInWe, softPolicyInPlanning,
                 getStateOrActionThirdPersonPerspective)
@@ -244,8 +246,9 @@ def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
     manipulatedVariables['numWolves'] = [3]
-    manipulatedVariables['numSheep'] = [2, 4, 8]
-    manipulatedVariables['valuePriorEndTime'] = [-100, 0, 100]
+    manipulatedVariables['numSheep'] = [1]
+    manipulatedVariables['valuePriorSoftMaxBeta'] = [0.0]
+    manipulatedVariables['valuePriorEndTime'] = [-100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)

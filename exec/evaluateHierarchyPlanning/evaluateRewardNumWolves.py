@@ -40,7 +40,7 @@ def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
     manipulatedVariables['numWolves'] = [2, 3]
-    manipulatedVariables['numSheep'] = [2, 4, 8]#, 4, 8]
+    manipulatedVariables['numSheep'] = [1, 2, 4, 8]#, 4, 8]
     manipulatedVariables['hierarchy'] = [0]
     manipulatedVariables['valuePriorEndTime'] = [-100]#[-100, 0, 100]
     levelNames = list(manipulatedVariables.keys())
@@ -58,11 +58,14 @@ def main():
         os.makedirs(trajectoryDirectory)
    
     NNNumSimulations = 250
-    maxRunningSteps = 51
+    maxRunningSteps = 52
     wolfPolicySoft = 2.5
     sheepPolicySoft = 2.5
+    valuePriorSoftMaxBeta = 0.0
     trajectoryFixedParameters = {'wolfPolicySoft': wolfPolicySoft, 'sheepPolicySoft': sheepPolicySoft, 
-            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations}
+            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations, 'valuePriorSoftMaxBeta': valuePriorSoftMaxBeta}
+    wolfType = 'sharedReward'
+    trajectoryFixedParameters.update({'wolfType': wolfType})
     trajectoryExtension = '.pickle'
     getTrajectorySavePath = GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
     
@@ -70,7 +73,7 @@ def main():
     loadTrajectories = LoadTrajectories(getTrajectorySavePath, loadFromPickle)
     loadTrajectoriesFromDf = lambda df: loadTrajectories(readParametersFromDf(df))
     
-    maxSteps = maxRunningSteps-26
+    maxSteps = maxRunningSteps-16
     measureIntentionArcheivement = lambda df: lambda trajectory: int(len(trajectory) < maxSteps) - 1 / maxSteps * min(len(trajectory), maxSteps)
     computeStatistics = ComputeStatistics(loadTrajectoriesFromDf, measureIntentionArcheivement)
     statisticsDf = toSplitFrame.groupby(levelNames).apply(computeStatistics)
@@ -92,7 +95,7 @@ def main():
         numWolvesLabels = ['2', '3']
         for numWolves, grp in group.groupby('numWolves'):
             grp.index = grp.index.droplevel('numWolves')
-            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = str(numWolves)+' Wolves', ylim = (0.2, 0.8), marker = 'o', rot = 0 )
+            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = str(numWolves)+' Wolves', ylim = (-0.2, 0.8), marker = 'o', rot = 0 )
         axForDraw.xaxis.set_label_text('Number of Sheep') 
        
         plotCounter = plotCounter + 1

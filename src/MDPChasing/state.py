@@ -13,19 +13,21 @@ class GetAgentsPositionsFromState:
         agentsPositions = np.asarray([state[self.posIndex] for state in agentsStates])
         return agentsPositions
 
-def getStateOrActionFirstPersonPerspective(stateOrAction, goalId, multiAgentsIds, selfId):
+def getStateOrActionFirstPersonPerspective(stateOrAction, goalId, multiAgentsIds, selfId, blocksId = []):
     selfIndexInMultiAgents = list(multiAgentsIds).index(selfId)
     agentsIds = list(multiAgentsIds).copy()
     agentsIds.insert(0, agentsIds.pop(selfIndexInMultiAgents))
     IdsRelative = agentsIds.copy()
     for Id in list(np.array([goalId]).flatten()):
         bisect.insort(IdsRelative, Id)
-    sortedIds = np.array(IdsRelative)
+    Ids = list(IdsRelative) + list(blocksId)
+    sortedIds = np.array(Ids)
     stateOrActionRelative = np.array(stateOrAction)[sortedIds]
     return stateOrActionRelative
 
-def getStateOrActionThirdPersonPerspective(stateOrAction, goalId, multiAgentsIds):
+def getStateOrActionThirdPersonPerspective(stateOrAction, goalId, multiAgentsIds, blocksId = []):
     IdsRelative = list(np.array([goalId]).flatten()) + list(multiAgentsIds)
-    sortedIds = np.array(IdsRelative)
+    Ids = list(IdsRelative) + list(blocksId)
+    sortedIds = np.array(np.sort(Ids))
     stateOrActionRelative = np.array(stateOrAction)[sortedIds]
     return stateOrActionRelative

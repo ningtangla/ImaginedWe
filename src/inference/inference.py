@@ -37,11 +37,29 @@ class CalCommittedAgentsPolicyLikelihood:
             marginalDf = jointDf.groupby([str(Id) for Id in committedAgentIds]).sum()
             marginalLikelihood = marginalDf['likelihood'].to_dict()
             if len(committedAgentIds) == 1:
-                action = tuple(percivedAction[committedAgentIds[0]])
+                jointAction = tuple(percivedAction[committedAgentIds[0]])
             else:
-                action = tuple([tuple(individualAction) 
+                jointAction = tuple([tuple(individualAction) 
                     for individualAction in np.array(percivedAction)[list(committedAgentIds)]])
-            committedAgentsPolicyLikelihood = marginalLikelihood[action]
+            committedAgentsPolicyLikelihood = marginalLikelihood[jointAction]
+        return committedAgentsPolicyLikelihood
+
+class CalCommittedAgentsContinuousPolicyLikelihood:
+    def __init__(self, concernedAgentsIds, policyForCommittedAgent, rationalityBeta):
+        self.concernedAgentsIds = concernedAgentsIds
+        self.policyForCommittedAgent = policyForCommittedAgent
+        self.rationalityBeta = rationalityBeta
+
+    def __call__(self, intention, state, percivedAction):
+        goalId, weIds = intention
+        committedAgentIds = [Id for Id in list(weIds) if Id in self.concernedAgentsIds]
+        if len(committedAgentIds) == 0:
+            committedAgentsPolicyLikelihood = 1
+        else:
+            jointActionDistribution = self.policyForCommittedAgent(state, goalId, weIds)
+            jointAction = np.array(percivedAction)[list(committedAgentIds)]
+            pdfs = [individualDistribution.pdf(action) for individualDistribution, action in zip(jointActionDistribution, jointAction)]
+            committedAgentsPolicyLikelihood = np.power(np.product(pdfs), self.rationalityBeta)
         return committedAgentsPolicyLikelihood
 
 class InferOneStep:
@@ -60,18 +78,19 @@ class InferOneStep:
         oneStepLikelihood = marginalLikelihood['likelihood'].to_dict()
         
         softenPrior = self.softPrior(intentionPrior)
-        unnomalizedPosterior = {key: np.exp(np.log(softenPrior[key] + 1e-4) + np.log(oneStepLikelihood[key] + 1e-6)) for key in list(intentionPrior.keys())}
+        unnomalizedPosterior = {key: np.exp(np.log(softenPrior[key] + 1e-4) + np.log(oneStepLikelihood[key])) for key in list(intentionPrior.keys())}
         normalizedProbabilities = np.array(list(unnomalizedPosterior.values())) / np.sum(list(unnomalizedPosterior.values()))
         normalizedPosterior = dict(zip(list(unnomalizedPosterior.keys()),normalizedProbabilities))
+        #print(normalizedPosterior)
         return normalizedPosterior
 
 
 class InferOneStepWithActionNoise:
-    def __init__(self, priorDecayRate, jointHypothesisSpace, concernedHypothesisVariable, calJointLikelihood, perceptNextState = None):	
-        self.priorDecayRate = priorDecayRate
+    def __init__(self, jointHypothesisSpace, concernedHypothesisVariable, calJointLikelihood, softPrior):
         self.jointHypothesisSpace = jointHypothesisSpace
-        self.concernedHypothesisVariable = concernedHypothesisVariable	
+        self.concernedHypothesisVariable = concernedHypothesisVariable
         self.calJointLikelihood = calJointLikelihood
+        self.softPrior = softPrior
 
     def __call__(self, intentionPrior, state, perceivedAction):
         jointHypothesisDf = pd.DataFrame(index = self.jointHypothesisSpace)
@@ -81,10 +100,12 @@ class InferOneStepWithActionNoise:
         #jointHypothesisDf['jointLikelihood'] = jointHypothesisDf.apply(lambda row: self.calJointLikelihood(row.name[0], state, row.name[1], nextState))
         marginalLikelihood = jointHypothesisDf.groupby(self.concernedHypothesisVariable).sum()
         oneStepLikelihood = marginalLikelihood['likelihood'].to_dict()
-        decayedLogPrior = {key: np.log(value) * self.priorDecayRate for key, value in intentionPrior.items()}
-        unnomalizedPosterior = {key: np.exp(decayedLogPrior[key] + np.log(oneStepLikelihood[key] + 1e-3)) for key in list(intentionPrior.keys())}
+        
+        softenPrior = self.softPrior(intentionPrior)
+        unnomalizedPosterior = {key: np.exp(np.log(softenPrior[key] + 1e-4) + np.log(oneStepLikelihood[key])) for key in list(intentionPrior.keys())}
         normalizedProbabilities = np.array(list(unnomalizedPosterior.values())) / np.sum(list(unnomalizedPosterior.values()))
         normalizedPosterior = dict(zip(list(unnomalizedPosterior.keys()),normalizedProbabilities))
+        #print(normalizedPosterior)
         return normalizedPosterior
 
 class InferOnTrajectory:

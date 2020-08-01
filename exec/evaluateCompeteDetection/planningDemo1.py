@@ -38,9 +38,9 @@ def main():
         os.makedirs(trajectoryDirectory)
     
     NNNumSimulations = 250
-    maxRunningSteps = 60
-    softParameterInPlanningForSheep = 1.0
-    softParameterInPlanning = 2.5
+    maxRunningSteps = 61
+    softParameterInPlanningForSheep = 2.0
+    softParameterInPlanning = 2.0
     trajectoryFixedParameters = {'sheepPolicySoft': softParameterInPlanningForSheep, 'wolfPolicySoft': softParameterInPlanning,
             'maxRunningSteps': maxRunningSteps, 'NNNumSimulations':NNNumSimulations}
     trajectoryExtension = '.pickle'
@@ -52,9 +52,9 @@ def main():
     numSheep = 1
     competePolicy = 'heatseeking'
     heatseekingPrecesion = 1.83
-    otherCompeteRate = 0.0
+    otherCompeteRate = 1.0
     competeDetectionRate = 0.5
-    inferenceSoft = 0.6
+    inferenceSoft = 0.05
     trajectoryParameters = {'heatseekingPrecesion': heatseekingPrecesion, 'inferenceSoft': inferenceSoft, 'numWolves': numWolves, 'numSheep': numSheep,
             'competePolicy': competePolicy, 'otherCompeteRate': otherCompeteRate, 'competeDetectionRate': competeDetectionRate}
     trajectories = loadTrajectories(trajectoryParameters) 
@@ -69,7 +69,7 @@ def main():
     lineWidth = 4
     drawBackground = DrawBackground(screen, screenColor, xBoundary, yBoundary, lineColor, lineWidth)
     
-    FPS = 30
+    FPS = 24
     circleColorSpace = [[0, 255, 0]]*numSheep + [[255, 0, 0]] * numWolves
     circleSize = 10
     positionIndex = [0, 1]
@@ -85,7 +85,7 @@ def main():
         os.makedirs(saveImageDir)
     goalSpace = list(range(numSheep))
     imaginedWeIdsForInferenceSubject = list(range(numSheep, numWolves + numSheep))
-    softParameter = 1.5
+    softParameter = 1.1
     softFunction = SoftDistribution(softParameter)
     selfPosteriorIndex = 0
     concernedAgentId = 2
@@ -122,7 +122,7 @@ def main():
     print(index)
     print(trajectories[0][1])
     #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:10]]]
-    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[0:1]]]
+    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[9:10]]]
 
 if __name__ == '__main__':
     main()

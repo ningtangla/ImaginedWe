@@ -44,6 +44,7 @@ class SampleTrjactoriesForConditions:
         print(parameters)
         numWolves = parameters['numWolves']
         numSheep = parameters['numSheep']
+        softParamterForValue = parameters['valuePriorSoftMaxBeta']
         valuePriorEndTime = parameters['valuePriorEndTime']
         
         ## MDP Env  
@@ -100,7 +101,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 2.0
+        softParameterInPlanningForSheep = 2.5
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -188,7 +189,6 @@ class SampleTrjactoriesForConditions:
         wolvesValueListBasedOnNumAgentsInWe = [ApproximateValue(NNModel) 
                 for NNModel in wolvesCentralControlNNModels]
         calIntentionValueGivenState = CalIntentionValueGivenState(wolvesValueListBasedOnNumAgentsInWe)
-        softParamterForValue = 0.1
         softValueToBuildDistribution = SoftMax(softParamterForValue)
         adjustIntentionPriorGivenValueOfState = AdjustIntentionPriorGivenValueOfState(calIntentionValueGivenState, softValueToBuildDistribution)
 
@@ -285,8 +285,9 @@ class SampleTrjactoriesForConditions:
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numWolves'] = [2]
-    manipulatedVariables['numSheep'] = [1, 2]
+    manipulatedVariables['numWolves'] = [2, 3]
+    manipulatedVariables['numSheep'] = [1, 2, 4, 8]
+    manipulatedVariables['valuePriorSoftMaxBeta'] = [0.0]
     manipulatedVariables['valuePriorEndTime'] = [-100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())

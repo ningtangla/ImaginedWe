@@ -27,6 +27,7 @@ class PolicyForCommittedAgent:
         relativeAgentsStatesForPolicy = self.getAgentsStatesForPolicy(state, goalId, weIds)
         actionDistribution = policyFunction(relativeAgentsStatesForPolicy)
         softenActionDistribution = self.softDistribution(actionDistribution)
+        #print(actionDistribution[0].mean, actionDistribution[1].mean)
         return softenActionDistribution
 
 class GetActionFromJointActionDistribution:
@@ -101,15 +102,16 @@ class SampleActionOnChangableIntention:
         return individualAction 
 
 class SampleActionOnFixedIntention:
-    def __init__(self, selfId, fixedIntention, policy, chooseActionMethod):
+    def __init__(self, selfId, fixedIntention, policy, chooseActionMethod, blocksId = []):
         self.selfId = selfId
         self.fixedIntention = fixedIntention
         self.goalIdsFromFixedIntention = list(np.array([fixedIntention]).flatten())
+        self.blocksId = blocksId
         self.policy = policy
         self.chooseActionMethod = chooseActionMethod
     
     def __call__(self, state):
-        relativeAgentsStates = state[np.sort([self.selfId] + self.goalIdsFromFixedIntention)]
+        relativeAgentsStates = state[np.sort([self.selfId] + self.goalIdsFromFixedIntention + self.blocksId)]
         actionDistribution = self.policy(relativeAgentsStates)
         individualAction = self.chooseActionMethod(actionDistribution)
         return individualAction

@@ -33,6 +33,7 @@ class ResetObstacle():
                           np.random.uniform(yMin, yMax)]
                          for _ in range(self.numOfAgnet)]
         return np.array(initState)
+
 class InterpolateOneFrame():
     def __init__(self, stayInBoundaryByReflectVelocity):
         self.stayInBoundaryByReflectVelocity = stayInBoundaryByReflectVelocity

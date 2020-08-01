@@ -100,9 +100,9 @@ class Interpolate1dData:
 def main():
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numSheep'] = [2]
+    manipulatedVariables['numSheep'] = [2, 4, 8]
     manipulatedVariables['hierarchy'] = [1, 2]
-    manipulatedVariables['valuePriorEndTime'] = [-100]#, 0, 100]
+    manipulatedVariables['valuePriorEndTime'] = [0]#, 0, 100]
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -122,8 +122,9 @@ def main():
     wolfPolicySoft = 2.0
     sheepPolicySoft = 2.0
     numWolves = 2
+    valuePriorSoftMaxBeta = 0.0
     trajectoryFixedParameters = {'numWolves': numWolves, 'wolfPolicySoft': wolfPolicySoft, 'sheepPolicySoft': sheepPolicySoft, 
-            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations}
+            'maxRunningSteps': maxRunningSteps, 'NNNumSimulations': NNNumSimulations, 'valuePriorSoftMaxBeta': valuePriorSoftMaxBeta}
     trajectoryExtension = '.pickle'
     getTrajectorySavePath = GetSavePath(trajectoryDirectory, trajectoryExtension, trajectoryFixedParameters)
      

@@ -1,6 +1,6 @@
 import numpy as np
 import random
-
+import scipy.stats as ss
 
 class SoftDistribution:
     def __init__(self, softParameter):
@@ -30,4 +30,11 @@ def sampleFromDistribution(distribution):
     selectedHypothesis = hypotheses[selectedIndex]
     return selectedHypothesis 
 
+class BuildGaussianFixCov:
+    def __init__(self, cov):
+        self.cov = cov
+    def __call__(self, mean):
+        return ss.multivariate_normal(mean, self.cov)
 
+def sampleFromContinuousSpace(distribution):
+    return distribution.rvs() 

@@ -27,7 +27,6 @@ class SampleTrajectory:
         state = self.resetState()
         while self.isTerminal(state):
             state = self.resetState()
-
         trajectory = []
         for runningStep in range(self.maxRunningSteps):
             if self.isTerminal(state):

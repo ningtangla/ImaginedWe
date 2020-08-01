@@ -69,7 +69,7 @@ class SampleTrjactoriesForConditions:
         numFramesToInterpolate = 3
         transit = TransitWithTerminalCheckOfInterpolation(numFramesToInterpolate, interpolateOneFrame, isTerminal)
 
-        maxRunningSteps = 60
+        maxRunningSteps = 61
         timeCost = 1/maxRunningSteps
         terminalBonus = 1
         rewardFunction = RewardFunctionByTerminal(timeCost, terminalBonus, isTerminal)
@@ -104,7 +104,7 @@ class SampleTrjactoriesForConditions:
         sheepPolicy = ApproximatePolicy(sheepNNModel, sheepIndividualActionSpace)
 
         # Sheep Generate Action
-        softParameterInPlanningForSheep = 1.0
+        softParameterInPlanningForSheep = 2.0
         softPolicyInPlanningForSheep = SoftDistribution(softParameterInPlanningForSheep)
         softenSheepPolicy = lambda relativeAgentsStatesForSheepPolicy: softPolicyInPlanningForSheep(sheepPolicy(relativeAgentsStatesForSheepPolicy))
 
@@ -254,10 +254,10 @@ def main():
     manipulatedVariables = OrderedDict()
     manipulatedVariables['numWolves'] = [2] # temp just 2
     manipulatedVariables['numSheep'] = [1] # temp just 1
-    manipulatedVariables['inferenceSoft'] = [0.3, 0.6, 1.0]
-    manipulatedVariables['wolfPolicySoft'] = [2.5]
-    manipulatedVariables['otherCompeteRate'] = [0.0, 0.5, 1.0] # 0 never compete, 1 always compete
-    manipulatedVariables['competeDetectionRate'] = [0.0, 0.5] # 0 never detect compete, 1 only detect compete
+    manipulatedVariables['inferenceSoft'] = [0.05, 0.1]
+    manipulatedVariables['wolfPolicySoft'] = [1.5, 2.0]
+    manipulatedVariables['otherCompeteRate'] = [1.0] # 0 never compete, 1 always compete
+    manipulatedVariables['competeDetectionRate'] = [0.5] # 0 never detect compete, 1 only detect compete
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
