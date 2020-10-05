@@ -40,9 +40,9 @@ def main():
     # manipulated variables
     # manipulated variables
     manipulatedVariables = OrderedDict()
-    manipulatedVariables['numSheep'] = [1, 2, 4]
-    manipulatedVariables['shared'] = ['reward', 'agencyBySharedWolf']#['no', 'reward', 'agencyBySharedWolf', 'agencyByIndividualWolf']
-    manipulatedVariables['sheepType'] = ['copySheepWithSharedRewardWolf']#['sheepWithSharedRewardWolf', 'copySheepWithSharedRewardWolf', 'sheepWithIndividualRewardWolf', 'copySheepWithIndividualRewardWolf']
+    manipulatedVariables['numSheep'] = [2, 4]
+    manipulatedVariables['shared'] = ['no', 'reward', 'agencyByIndividualWolf']#['no', 'reward', 'agencyBySharedWolf', 'agencyByIndividualWolf']
+    manipulatedVariables['sheepType'] = ['sheepWithIndividualRewardWolf']#['sheepWithSharedRewardWolf', 'copySheepWithSharedRewardWolf', 'sheepWithIndividualRewardWolf', 'copySheepWithIndividualRewardWolf']
     levelNames = list(manipulatedVariables.keys())
     levelValues = list(manipulatedVariables.values())
     modelIndex = pd.MultiIndex.from_product(levelValues, names=levelNames)
@@ -84,22 +84,23 @@ def main():
             'sheepWithIndividualRewardWolf': 'No Copy Individual', 
             'copySheepWithIndividualRewardWolf': 'Copy Individual'}
     wolfTypeTable = {'no': 'Individual Reward', 'reward': 'Shared Reward', 
-            'agencyBySharedWolf': 'Emergent We',
-            'agencyByIndividualWolf': 'Shared Agency By Individual Wolf'}
+            'agencyBySharedWolf': 'Shared Agency',
+            'agencyByIndividualWolf': 'Shared Agency'}
 
     for key, group in statisticsDf.groupby(['sheepType']):
         group.index = group.index.droplevel(['sheepType'])
         axForDraw = fig.add_subplot(numRows, numColumns, plotCounter)
         if (plotCounter) % max(numColumns, 2) == 1:
-            axForDraw.set_ylabel('Accumulated Reward')
+            axForDraw.set_ylabel('Average Bite')
         
         #if plotCounter <= numColumns:
         #    axForDraw.set_title(str(sheepTypeTable[key]))
         
         numWolvesLabels = ['2', '3']
         for wolfType, grp in group.groupby('shared'):
+            grp['mean'] = grp['mean']-5
             grp.index = grp.index.droplevel('shared')
-            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = wolfTypeTable[wolfType], ylim = (0, 18), marker = 'o', rot = 0 )
+            grp.plot.line(ax = axForDraw, y = 'mean', yerr = 'se', label = wolfTypeTable[wolfType], ylim = (0, 15), marker = 'o', rot = 0 )
             if int((plotCounter - 1) / numColumns) == numRows - 1:
                 axForDraw.xaxis.set_label_text('Number of Sheep') 
             else:
@@ -107,10 +108,10 @@ def main():
                 xLabel = xAxis.get_label()
                 xLabel.set_visible(False)
 
-       
+        plt.xticks([2, 4]) 
         plotCounter = plotCounter + 1
 
-    #plt.suptitle('Sheep Type')
+    plt.suptitle('3 Wolves')
     #fig.text(x = 0.5, y = 0.92, s = 'Wolf Type', ha = 'center', va = 'center')
     #fig.text(x = 0.05, y = 0.5, s = 'Sheep Type', ha = 'center', va = 'center', rotation=90)
     plt.show()

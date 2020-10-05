@@ -51,8 +51,8 @@ def main():
     # Trajectories
     loadTrajectories = LoadTrajectories(getTrajectorySavePath, loadFromPickle)
     numWolves = 3
-    numSheep = 2
-    rationalityBetaInInference = 0.2
+    numSheep = 4
+    rationalityBetaInInference = 0.5
     valuePriorEndTime = -100
     valuePriorSoftMaxBeta = 0.0
     sheepConcern = 'selfSheep'
@@ -79,14 +79,15 @@ def main():
     sheepColor = [80, 80, 80]
     blockColor = [200, 200, 200]
     circleColorSpace = [wolfColor] * numWolves + [sheepColor]*numSheep + [blockColor] * numBlocks
-    sheepSize = int(0.05 * screenWidth / 2)
-    wolfSize = int(0.075 * screenWidth / 3)
-    blockSize = int(0.2 * screenWidth / 3)
+    viewRatio = 1.5
+    sheepSize = int(0.05 * screenWidth / (2 * viewRatio))
+    wolfSize = int(0.075 * screenWidth / (3 * viewRatio))
+    blockSize = int(0.2 * screenWidth / (3 * viewRatio))
     circleSizeSpace = [wolfSize] * numWolves + [sheepSize] * numSheep + [blockSize] * numBlocks
     positionIndex = [0, 1]
     agentIdsToDraw = list(range(numWolves + numSheep + numBlocks))
-    #saveImage = True
-    saveImage = False
+    saveImage = True
+    #saveImage = False
     imageSavePath = os.path.join(trajectoryDirectory, 'picMovingSheep')
     if not os.path.exists(imageSavePath):
         os.makedirs(imageSavePath)
@@ -105,8 +106,8 @@ def main():
     outsideCircleAgentIds = imaginedWeIdsForInferenceSubject
     outsideCircleColor = np.array([[255, 0, 0]] * numWolves)
     outsideCircleSize = int(wolfSize * 1.5)
-    drawCircleOutside = DrawCircleOutsideEnvMADDPG(screen, outsideCircleAgentIds, positionIndex, outsideCircleColor, outsideCircleSize)
-    drawState = DrawStateEnvMADDPG(FPS, screen, circleColorSpace, circleSizeSpace, agentIdsToDraw, positionIndex, 
+    drawCircleOutside = DrawCircleOutsideEnvMADDPG(screen, viewRatio, outsideCircleAgentIds, positionIndex, outsideCircleColor, outsideCircleSize)
+    drawState = DrawStateEnvMADDPG(FPS, screen, viewRatio, circleColorSpace, circleSizeSpace, agentIdsToDraw, positionIndex, 
             saveImage, saveImageDir, drawBackground, updateColorSpaceByPosterior, drawCircleOutside)
     
    # MDP Env
@@ -122,9 +123,9 @@ def main():
     index = np.argsort(-np.array(lens))
     print(index)
     print(trajectories[0][1])
-    #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[12:15]]]
+    #[chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[16:20]]]#3v4 rational0.5, no 3, 16, 18 
     print([len(trajectory) for trajectory in np.array(trajectories)[index[:]]])
-    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[[2, 12, 9]]]]
+    [chaseTrial(trajectory) for trajectory in np.array(trajectories)[index[[3, 16, 18]]]]
 
 if __name__ == '__main__':
     main()
